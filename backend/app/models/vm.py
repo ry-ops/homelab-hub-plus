@@ -13,7 +13,7 @@ class VM(BaseMixin, db.Model):
     ram_gb = db.Column(db.Float)
     disk_gb = db.Column(db.Float)
     os = db.Column(db.Text)
-    hypervisor = db.Column(db.Text)
+    icon = db.Column(db.Text)
     notes = db.Column(db.Text)
 
     apps = db.relationship("AppService", backref="vm", lazy="select")

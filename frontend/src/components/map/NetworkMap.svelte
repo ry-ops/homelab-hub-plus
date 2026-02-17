@@ -10,31 +10,58 @@
   let container;
   let cy;
   let saveTimeout;
+  let networks = [];
+  let selectedNode = null;
+  let selectedNodeDetails = null;
+  let loadingDetails = false;
+  let hideMisc = false;
+  let tooltip = { visible: false, text: "", x: 0, y: 0 };
+
+  async function loadNodeDetails(node) {
+    if (!node) return;
+    loadingDetails = true;
+    try {
+      const response = await get(`/${node.type}/${node.entity_id}`);
+      selectedNodeDetails = response.data;
+    } catch (e) {
+      console.error('Failed to load node details:', e);
+      selectedNodeDetails = null;
+    }
+    loadingDetails = false;
+  }
+
+  $: if (selectedNode) {
+    loadNodeDetails(selectedNode);
+  } else {
+    selectedNodeDetails = null;
+    loadingDetails = false;
+  }
 
   const NODE_STYLES = {
-    hardware:  { shape: "round-rectangle", color: "#4A90D9" },
-    vms:       { shape: "ellipse",          color: "#7EC850" },
-    apps:      { shape: "round-rectangle", color: "#F5A623" },
-    storage:   { shape: "barrel",           color: "#9B59B6" },
-    networks:  { shape: "diamond",          color: "#E74C3C" },
-    misc:      { shape: "tag",              color: "#95A5A6" },
+    hardware:  { shape: "hexagon",          color: "#C5E1F5" },  // Pastel blue
+    vms:       { shape: "ellipse",          color: "#C8E6C9" },  // Pastel green
+    apps:      { shape: "round-rectangle", color: "#FFE0B2" },  // Pastel orange
+    storage:   { shape: "barrel",           color: "#E1BEE7" },  // Pastel purple
+    misc:      { shape: "diamond",          color: "#E0E0E0" },  // Light gray
   };
 
   onMount(async () => {
     try {
-      const [graphRes, layoutRes] = await Promise.all([
+      const [graphRes, layoutRes, networksRes] = await Promise.all([
         get("/map/graph"),
         get("/map/layout"),
+        get("/map/networks"),
       ]);
 
       const savedPositions = layoutRes.data || {};
+      networks = networksRes.networks || [];
 
       // Apply saved positions to nodes
       const nodes = graphRes.nodes.map((n) => {
         const saved = savedPositions[n.data.id];
         if (saved) {
           n.position = { x: saved.x, y: saved.y };
-          n.locked = saved.pinned;
+          // Don't lock nodes - they should always be draggable
         }
         return n;
       });
@@ -49,12 +76,44 @@
               label: "data(label)",
               "text-valign": "center",
               "text-halign": "center",
-              "font-size": "11px",
-              color: "#fff",
-              "text-outline-width": 2,
-              "text-outline-color": "#333",
-              width: 50,
-              height: 50,
+              "font-size": "7px",
+              "font-weight": "400",
+              "font-family": "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+              "font-style": "italic",
+              color: "#333",
+              "text-outline-width": 0,
+              width: 48,
+              height: 48,
+              "text-wrap": "wrap",
+              "text-max-width": "65px",
+              "background-color": "#FFFFFF",
+              "border-width": 2,
+              "border-color": "#999",
+              "border-style": "solid",
+            },
+          },
+          // Nodes with emoji icons - larger emoji only, no text, no italic
+          {
+            selector: "node[icon]:not([imageIcon])",
+            style: {
+              "font-size": "20px",
+              "font-style": "normal",
+              width: 52,
+              height: 52,
+            },
+          },
+          // Nodes with image icons - use background image
+          {
+            selector: "node[imageIcon]",
+            style: {
+              "background-image": "data(imageIcon)",
+              "background-fit": "contain",
+              "background-clip": "none",
+              "background-width": "70%",
+              "background-height": "70%",
+              width: 48,
+              height: 48,
+              label: "",  // Hide label for image nodes
             },
           },
           // Per-type styles
@@ -65,6 +124,15 @@
               "background-color": s.color,
             },
           })),
+          // Override color for nodes with network color
+          {
+            selector: "node[networkColor]",
+            style: {
+              "border-width": 3,
+              "border-color": "data(networkColor)",
+              "border-style": "solid",
+            },
+          },
           {
             selector: "edge",
             style: {
@@ -84,6 +152,13 @@
             style: {
               "line-style": "dashed",
               "line-color": "#888",
+            },
+          },
+          {
+            selector: ".constraint-edge",
+            style: {
+              opacity: 0,  // Make invisible
+              "z-index": -1,
             },
           },
         ],
@@ -106,13 +181,45 @@
       // Show details on tap
       cy.on("tap", "node", (evt) => {
         const node = evt.target;
-        const data = node.data();
-        addToast(`${data.type}: ${data.label}`, "info");
+        selectedNode = node.data();
+      });
+
+      // Deselect when clicking background
+      cy.on("tap", (evt) => {
+        if (evt.target === cy) {
+          selectedNode = null;
+        }
+      });
+
+      // Show tooltip on hover
+      cy.on("mouseover", "node", (evt) => {
+        const node = evt.target;
+        const renderedPosition = node.renderedPosition();
+        tooltip = {
+          visible: true,
+          text: node.data("rawName") || node.data("label"),
+          x: renderedPosition.x + 45,
+          y: renderedPosition.y
+        };
+      });
+
+      cy.on("mouseout", "node", () => {
+        tooltip.visible = false;
       });
     } catch (e) {
       addToast("Failed to load map: " + e.message, "error");
     }
   });
+
+  // Reactive statement to hide/show misc nodes
+  $: if (cy) {
+    const miscNodes = cy.nodes('[type="misc"]');
+    if (hideMisc) {
+      miscNodes.hide();
+    } else {
+      miscNodes.show();
+    }
+  }
 
   onDestroy(() => {
     if (cy) cy.destroy();
@@ -121,14 +228,158 @@
 
   function runDagreLayout() {
     if (!cy) return;
+    
+    // Group nodes by rank to enforce hierarchy
+    const nodesByRank = { 0: [], 1: [], 2: [], 3: [] };
+    cy.nodes().forEach(node => {
+      const rank = node.data("rank") || 3;
+      nodesByRank[rank].push(node);
+    });
+    
+    const constraintEdges = [];
+    
+    // Add rank constraint edges
+    for (let rank = 0; rank < 3; rank++) {
+      const currentRank = nodesByRank[rank];
+      const nextRank = nodesByRank[rank + 1];
+      
+      if (currentRank.length > 0 && nextRank.length > 0) {
+        constraintEdges.push({
+          group: 'edges',
+          data: {
+            id: `constraint-${rank}-${rank+1}`,
+            source: currentRank[0].id(),
+            target: nextRank[0].id(),
+            isConstraint: true
+          },
+          classes: 'constraint-edge'
+        });
+      }
+    }
+    
+    // Add constraint edges to graph
+    cy.add(constraintEdges);
+    
     cy.layout({
       name: "dagre",
-      rankDir: "TB",
-      nodeSep: 60,
-      rankSep: 100,
-      animate: true,
-      animationDuration: 300,
+      rankDir: "TB",  // Top to bottom
+      nodeSep: 40,     // Horizontal spacing between nodes
+      rankSep: 120,    // Vertical spacing between ranks
+      edgeSep: 10,     // Spacing for edges
+      ranker: "network-simplex",
+      fit: false,      // Don't fit yet - we'll adjust positions first
+      padding: 30,     // Padding around graph
+      animate: false,  // No animation on initial layout
     }).run();
+    
+    // Post-process: reorder subtrees to put misc on left, without forcing gaps
+    const rank0Nodes = cy.nodes('[rank=0]');
+    const subtrees = [];
+    
+    rank0Nodes.forEach(topNode => {
+      const descendants = new Set();
+      descendants.add(topNode.id());
+      
+      // BFS to find all descendants
+      const queue = [topNode];
+      const visited = new Set([topNode.id()]);
+      
+      while (queue.length > 0) {
+        const node = queue.shift();
+        const children = node.outgoers('node');
+        children.forEach(child => {
+          if (!visited.has(child.id())) {
+            visited.add(child.id());
+            descendants.add(child.id());
+            queue.push(child);
+          }
+        });
+      }
+      
+      // Calculate bounding box for this subtree (with proper 2D bounds)
+      let minX = Infinity, maxX = -Infinity;
+      let minY = Infinity, maxY = -Infinity;
+      let topNodeX = 0;
+      
+      descendants.forEach(nodeId => {
+        const node = cy.getElementById(nodeId);
+        const pos = node.position();
+        const width = node.width();
+        const height = node.height();
+        
+        minX = Math.min(minX, pos.x - width/2);
+        maxX = Math.max(maxX, pos.x + width/2);
+        minY = Math.min(minY, pos.y - height/2);
+        maxY = Math.max(maxY, pos.y + height/2);
+        
+        if (nodeId === topNode.id()) {
+          topNodeX = pos.x;
+        }
+      });
+      
+      subtrees.push({
+        topNode,
+        descendants,
+        minX,
+        maxX,
+        minY,
+        maxY,
+        width: maxX - minX,
+        height: maxY - minY,
+        topNodeX
+      });
+    });
+    
+    // Separate misc nodes from others and put misc on the left
+    const miscSubtrees = subtrees.filter(s => s.topNode.data('type') === 'misc');
+    const otherSubtrees = subtrees.filter(s => s.topNode.data('type') !== 'misc');
+    
+    // Sort each group by top node position
+    miscSubtrees.sort((a, b) => a.topNodeX - b.topNodeX);
+    otherSubtrees.sort((a, b) => a.topNodeX - b.topNodeX);
+    
+    // Combine with misc first (leftmost)
+    const reorderedSubtrees = [...miscSubtrees, ...otherSubtrees];
+    
+    // Only reposition if there are actual overlaps
+    const nodeSize = 50; // Approximate node size
+    let currentX = 0;
+    
+    reorderedSubtrees.forEach((subtree, idx) => {
+      if (idx === 0) {
+        // First subtree stays in place
+        currentX = subtree.maxX;
+      } else {
+        // Check if current subtree overlaps with previous position
+        if (subtree.minX < currentX + 10) {
+          // There's overlap, shift this subtree
+          const shift = (currentX + 10) - subtree.minX;
+          
+          subtree.descendants.forEach(nodeId => {
+            const node = cy.getElementById(nodeId);
+            const pos = node.position();
+            node.position({ x: pos.x + shift, y: pos.y });
+          });
+          
+          // Update bounds
+          subtree.minX += shift;
+          subtree.maxX += shift;
+        }
+        currentX = subtree.maxX;
+      }
+    });
+    
+    // Now fit the graph to viewport with animation
+    cy.fit(30);
+    cy.animate({
+      fit: { padding: 30 },
+      duration: 300
+    });
+    
+    // Remove constraint edges after layout
+    setTimeout(() => {
+      cy.filter('.constraint-edge').remove();
+    }, 350);
   }
 
   function debounceSaveLayout() {
@@ -165,13 +416,217 @@
 
 <div class="cy-container" bind:this={container}></div>
 
+{#if tooltip.visible}
+  <div class="node-tooltip" style="left: {tooltip.x}px; top: {tooltip.y}px;">
+    {tooltip.text}
+  </div>
+{/if}
+
+{#if selectedNode}
+  <div class="info-panel">
+    <div class="info-header">
+      <h3>
+        {#if selectedNode.icon}
+          <span class="node-icon">{selectedNode.icon}</span>
+        {/if}
+        {selectedNode.rawName || selectedNode.label}
+      </h3>
+      <button class="close-btn" on:click={() => selectedNode = null}>×</button>
+    </div>
+    <div class="info-content">
+      <div class="info-item">
+        <span class="info-label">Type:</span>
+        <span class="info-value">{selectedNode.type}</span>
+      </div>
+      {#if loadingDetails}
+        <div class="info-item">
+          <span class="info-label">Loading...</span>
+        </div>
+      {:else if selectedNodeDetails}
+        {#if selectedNodeDetails.hostname}
+          <div class="info-item">
+            <span class="info-label">Hostname:</span>
+            <span class="info-value">{selectedNodeDetails.hostname}</span>
+          </div>
+        {/if}
+        {#if selectedNodeDetails.ip_address}
+          <div class="info-item">
+            <span class="info-label">IP Address:</span>
+            <span class="info-value">{selectedNodeDetails.ip_address}</span>
+          </div>
+        {/if}
+        {#if selectedNodeDetails.os}
+          <div class="info-item">
+            <span class="info-label">OS:</span>
+            <span class="info-value">{selectedNodeDetails.os}</span>
+          </div>
+        {/if}
+        {#if selectedNodeDetails.cpu}
+          <div class="info-item">
+            <span class="info-label">CPU:</span>
+            <span class="info-value">{selectedNodeDetails.cpu}</span>
+          </div>
+        {/if}
+        {#if selectedNodeDetails.cpu_cores}
+          <div class="info-item">
+            <span class="info-label">CPU Cores:</span>
+            <span class="info-value">{selectedNodeDetails.cpu_cores}</span>
+          </div>
+        {/if}
+        {#if selectedNodeDetails.ram_gb}
+          <div class="info-item">
+            <span class="info-label">RAM:</span>
+            <span class="info-value">{selectedNodeDetails.ram_gb} GB</span>
+          </div>
+        {/if}
+        {#if selectedNodeDetails.port}
+          <div class="info-item">
+            <span class="info-label">Port:</span>
+            <span class="info-value">{selectedNodeDetails.port}</span>
+          </div>
+        {/if}
+        {#if selectedNode.type === 'apps' && selectedNodeDetails.port && (selectedNodeDetails.hostname || selectedNodeDetails.ip_address)}
+          <div class="info-item">
+            <span class="info-label">Link:</span>
+            <span class="info-value">
+              <a href="{selectedNodeDetails.https ? 'https' : 'http'}://{selectedNodeDetails.hostname || selectedNodeDetails.ip_address}:{selectedNodeDetails.port}" target="_blank" rel="noopener noreferrer">
+                {selectedNodeDetails.hostname || selectedNodeDetails.ip_address}:{selectedNodeDetails.port}
+              </a>
+            </span>
+          </div>
+        {/if}
+        {#if selectedNodeDetails.external_hostname}
+          <div class="info-item">
+            <span class="info-label">External Host:</span>
+            <span class="info-value">{selectedNodeDetails.external_hostname}</span>
+          </div>
+        {/if}
+        {#if selectedNodeDetails.storage_type}
+          <div class="info-item">
+            <span class="info-label">Storage Type:</span>
+            <span class="info-value">{selectedNodeDetails.storage_type}</span>
+          </div>
+        {/if}
+        {#if selectedNodeDetails.raid_type}
+          <div class="info-item">
+            <span class="info-label">RAID:</span>
+            <span class="info-value">{selectedNodeDetails.raid_type}</span>
+          </div>
+        {/if}
+        {#if selectedNodeDetails.raw_space_tb}
+          <div class="info-item">
+            <span class="info-label">Raw Space:</span>
+            <span class="info-value">{selectedNodeDetails.raw_space_tb} TB</span>
+          </div>
+        {/if}
+        {#if selectedNodeDetails.usable_space_tb}
+          <div class="info-item">
+            <span class="info-label">Usable Space:</span>
+            <span class="info-value">{selectedNodeDetails.usable_space_tb} TB</span>
+          </div>
+        {/if}
+        {#if selectedNodeDetails.filesystem}
+          <div class="info-item">
+            <span class="info-label">Filesystem:</span>
+            <span class="info-value">{selectedNodeDetails.filesystem}</span>
+          </div>
+        {/if}
+        {#if selectedNodeDetails.category}
+          <div class="info-item">
+            <span class="info-label">Category:</span>
+            <span class="info-value">{selectedNodeDetails.category}</span>
+          </div>
+        {/if}
+        {#if selectedNodeDetails.description}
+          <div class="info-item">
+            <span class="info-label">Description:</span>
+            <span class="info-value">{selectedNodeDetails.description}</span>
+          </div>
+        {/if}
+      {/if}
+      {#if selectedNode.networkName}
+        <div class="info-item">
+          <span class="info-label">Network:</span>
+          <span class="info-value">
+            <span class="network-indicator" style="background-color: {selectedNode.networkColor}"></span>
+            {selectedNode.networkName}
+          </span>
+        </div>
+      {/if}
+      {#if selectedNodeDetails && selectedNodeDetails.notes}
+        <div class="info-item notes">
+          <span class="info-label">Notes:</span>
+          <span class="info-value">{selectedNodeDetails.notes}</span>
+        </div>
+      {/if}
+    </div>
+    <div class="info-footer">
+      <a href="#/inventory/{selectedNode.type}" class="view-link">View in Inventory →</a>
+    </div>
+  </div>
+{/if}
+
+<div class="networks-panel">
+  <h3>Networks</h3>
+  {#if networks.length > 0}
+    <div class="network-list">
+      {#each networks as network}
+        <div class="network-item">
+          <span class="network-color" style="background-color: {network.color}"></span>
+          <span class="network-name">{network.name}</span>
+          {#if network.vlan_id}
+            <span class="network-vlan">VLAN {network.vlan_id}</span>
+          {/if}
+        </div>
+      {/each}
+    </div>
+  {:else}
+    <p class="empty-state">No networks configured</p>
+  {/if}
+  
+  <div class="panel-divider"></div>
+  
+  <label class="toggle-option">
+    <input type="checkbox" bind:checked={hideMisc} />
+    <span>Hide misc items</span>
+  </label>
+</div>
+
 <div class="legend">
-  {#each Object.entries(NODE_STYLES) as [type, style]}
-    <span class="legend-item">
-      <span class="legend-dot" style="background: {style.color}"></span>
-      {type}
-    </span>
-  {/each}
+  <div class="legend-item">
+    <svg width="24" height="24" viewBox="0 0 16 16">
+      <polygon points="8,1 15,5 15,11 8,15 1,11 1,5" fill="#C5E1F5" stroke="#999" stroke-width="1"/>
+    </svg>
+    <span>hardware</span>
+  </div>
+  <div class="legend-item">
+    <svg width="24" height="24" viewBox="0 0 16 16">
+      <circle cx="8" cy="8" r="7" fill="#C8E6C9" stroke="#999" stroke-width="1"/>
+    </svg>
+    <span>vms</span>
+  </div>
+  <div class="legend-item">
+    <svg width="24" height="24" viewBox="0 0 16 16">
+      <rect x="2" y="2" width="12" height="12" rx="2" fill="#FFE0B2" stroke="#999" stroke-width="1"/>
+    </svg>
+    <span>apps</span>
+  </div>
+  <div class="legend-item">
+    <svg width="24" height="24" viewBox="0 0 16 16">
+      <ellipse cx="8" cy="3" rx="6" ry="2" fill="#E1BEE7" stroke="#999" stroke-width="1"/>
+      <rect x="2" y="3" width="12" height="10" fill="#E1BEE7" stroke="none"/>
+      <ellipse cx="8" cy="13" rx="6" ry="2" fill="#E1BEE7" stroke="#999" stroke-width="1"/>
+      <line x1="2" y1="3" x2="2" y2="13" stroke="#999" stroke-width="1"/>
+      <line x1="14" y1="3" x2="14" y2="13" stroke="#999" stroke-width="1"/>
+    </svg>
+    <span>storage</span>
+  </div>
+  <div class="legend-item">
+    <svg width="24" height="24" viewBox="0 0 16 16">
+      <polygon points="8,1 15,8 8,15 1,8" fill="#E0E0E0" stroke="#999" stroke-width="1"/>
+    </svg>
+    <span>misc</span>
+  </div>
 </div>
 
 <style>
@@ -180,27 +635,210 @@
     height: 100%;
     min-height: 400px;
   }
+  .info-panel {
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    background: rgba(0, 0, 0, 0.9);
+    padding: 0;
+    border-radius: 6px;
+    min-width: 280px;
+    max-width: 350px;
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  }
+  .info-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .info-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .node-icon {
+    font-size: 1.5rem;
+  }
+  .close-btn {
+    background: transparent;
+    border: none;
+    color: #999;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    transition: all 0.2s;
+  }
+  .close-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+  }
+  .info-content {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+  }
+  .info-item.notes {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
+  }
+  .info-item.notes .info-value {
+    font-size: 0.85rem;
+    color: #ccc;
+    font-style: italic;
+  }
+  .info-label {
+    color: #999;
+    font-weight: 500;
+  }
+  .info-value {
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .network-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    display: inline-block;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+  .info-footer {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .view-link {
+    color: var(--pico-primary, #6366f1);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: color 0.2s;
+  }
+  .view-link:hover {
+    color: var(--pico-primary-hover, #818cf8);
+  }
+  .networks-panel {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 0.75rem;
+    border-radius: 6px;
+    min-width: 200px;
+    max-width: 300px;
+    color: #fff;
+  }
+  .networks-panel h3 {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.9rem;
+    color: #ccc;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 0.5rem;
+  }
+  .network-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .network-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+  }
+  .network-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  .network-name {
+    flex: 1;
+    font-weight: 500;
+  }
+  .network-vlan {
+    font-size: 0.75rem;
+    color: #999;
+  }
+  .empty-state {
+    font-size: 0.8rem;
+    color: #999;
+    margin: 0;
+    font-style: italic;
+  }
+  .panel-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0.75rem 0;
+  }
+  .toggle-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    color: #ccc;
+    margin: 0;
+  }
+  .toggle-option input[type="checkbox"] {
+    cursor: pointer;
+    margin: 0;
+  }
+  .toggle-option:hover {
+    color: #fff;
+  }
   .legend {
     position: absolute;
     bottom: 0.75rem;
     left: 0.75rem;
     display: flex;
-    gap: 0.75rem;
-    background: rgba(0, 0, 0, 0.6);
-    padding: 0.4rem 0.75rem;
-    border-radius: 6px;
-    font-size: 0.75rem;
-    color: #ccc;
+    gap: 1rem;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: #ddd;
   }
   .legend-item {
     display: flex;
     align-items: center;
-    gap: 0.3rem;
+    gap: 0.5rem;
   }
-  .legend-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    display: inline-block;
+  .legend-item svg {
+    flex-shrink: 0;
+  }
+  .node-tooltip {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.9);
+    color: #fff;
+    padding: 0.4rem 0.7rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    pointer-events: none;
+    z-index: 1000;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transform: translate(0, -50%);
   }
 </style>

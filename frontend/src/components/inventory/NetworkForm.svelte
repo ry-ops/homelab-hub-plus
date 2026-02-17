@@ -11,4 +11,5 @@
   <label>Gateway<input type="text" bind:value={item.gateway} placeholder="192.168.1.1" /></label>
 </div>
 <label>DNS Servers<input type="text" bind:value={item.dns_servers} placeholder="1.1.1.1, 8.8.8.8" /></label>
+<label>Color<input type="color" bind:value={item.color} /></label>
 <label>Notes<textarea bind:value={item.notes} rows="3"></textarea></label>

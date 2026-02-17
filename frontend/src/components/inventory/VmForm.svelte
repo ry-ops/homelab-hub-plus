@@ -1,6 +1,7 @@
 <script>
   import { onMount } from "svelte";
   import { get } from "../../lib/api.js";
+  import IconPicker from "./IconPicker.svelte";
 
   export let item = {};
 
@@ -39,6 +40,6 @@
 </div>
 <div class="grid">
   <label>OS<input type="text" bind:value={item.os} /></label>
-  <label>Hypervisor<input type="text" bind:value={item.hypervisor} placeholder="Proxmox, ESXi, LXC..." /></label>
 </div>
+<IconPicker bind:value={item.icon} />
 <label>Notes<textarea bind:value={item.notes} rows="3"></textarea></label>

@@ -1,3 +1,6 @@
+from . import apps, documents, hardware, inventory, map_routes, misc, networks, storage, vms
+from flask import Blueprint
+
 def register_blueprints(app):
     from .documents import bp as documents_bp
     from .hardware import bp as hardware_bp

@@ -1,6 +1,5 @@
 <script>
   import { params } from "svelte-spa-router";
-  import InventoryNav from "../components/inventory/InventoryNav.svelte";
   import EntityList from "../components/inventory/EntityList.svelte";
   import EntityDetail from "../components/inventory/EntityDetail.svelte";
 
@@ -9,8 +8,6 @@
 </script>
 
 <div class="inventory-page">
-  <InventoryNav activeType={type} />
-
   {#if entityId}
     <EntityDetail {type} id={entityId} />
   {:else}
@@ -20,6 +17,6 @@
 
 <style>
   .inventory-page {
-    max-width: 1200px;
+    /* Removed max-width to allow tables to use full horizontal space */
   }
 </style>

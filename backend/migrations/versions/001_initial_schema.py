@@ -114,6 +114,8 @@ def upgrade() -> None:
         sa.Column("member_type", sa.Text, nullable=False),
         sa.Column("member_id", sa.Integer, nullable=False),
         sa.Column("ip_on_network", sa.Text),
+        sa.Column("created_at", sa.DateTime, nullable=False),
+        sa.Column("updated_at", sa.DateTime, nullable=False),
         sa.UniqueConstraint("network_id", "member_type", "member_id", name="uq_network_member"),
     )
 

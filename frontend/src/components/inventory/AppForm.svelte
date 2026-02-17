@@ -1,12 +1,15 @@
 <script>
   import { onMount } from "svelte";
   import { get } from "../../lib/api.js";
+  import IconPicker from "./IconPicker.svelte";
 
   export let item = {};
 
   let hardwareOptions = [];
   let vmOptions = [];
   let parentType = item.vm_id ? "vm" : item.hardware_id ? "hardware" : "none";
+  let previousHardwareId = item.hardware_id;
+  let previousVmId = item.vm_id;
 
   onMount(async () => {
     try {
@@ -29,6 +32,33 @@
     } else if (parentType === "vm") {
       item.hardware_id = null;
     }
+  }
+
+  // Auto-populate hostname and IP from parent only when creating a new app
+  $: if (!item.id && item.hardware_id && hardwareOptions.length > 0 && item.hardware_id !== previousHardwareId) {
+    const hardware = hardwareOptions.find(h => h.id === item.hardware_id);
+    if (hardware) {
+      if (hardware.hostname && !item.hostname) {
+        item.hostname = hardware.hostname;
+      }
+      if (hardware.ip_address && !item.ip_address) {
+        item.ip_address = hardware.ip_address;
+      }
+    }
+    previousHardwareId = item.hardware_id;
+  }
+
+  $: if (!item.id && item.vm_id && vmOptions.length > 0 && item.vm_id !== previousVmId) {
+    const vm = vmOptions.find(v => v.id === item.vm_id);
+    if (vm) {
+      if (vm.hostname && !item.hostname) {
+        item.hostname = vm.hostname;
+      }
+      if (vm.ip_address && !item.ip_address) {
+        item.ip_address = vm.ip_address;
+      }
+    }
+    previousVmId = item.vm_id;
   }
 </script>
 
@@ -68,11 +98,16 @@
 
 <label>Description<input type="text" bind:value={item.description} /></label>
 <div class="grid">
-  <label>Hostname<input type="text" bind:value={item.hostname} /></label>
-  <label>External Hostname<input type="text" bind:value={item.external_hostname} /></label>
+  <label>Hostname<input type="text" bind:value={item.hostname} placeholder="Defaults to parent hostname" /></label>
+  <label>IP Address<input type="text" bind:value={item.ip_address} placeholder="Defaults to parent IP" /></label>
 </div>
 <div class="grid">
+  <label>External Hostname<input type="text" bind:value={item.external_hostname} /></label>
   <label>Port<input type="number" bind:value={item.port} /></label>
-  <label>URL<input type="url" bind:value={item.url} /></label>
 </div>
+<label>
+  <input type="checkbox" bind:checked={item.https} />
+  Use HTTPS
+</label>
+<IconPicker bind:value={item.icon} />
 <label>Notes<textarea bind:value={item.notes} rows="3"></textarea></label>

@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request
+from ipaddress import ip_address, ip_network, AddressValueError
 
 from ..models import (
     db, Hardware, VM, AppService, Storage, Network, Misc,
@@ -17,23 +18,79 @@ ENTITY_MAP = {
 }
 
 
+def get_network_for_ip(ip_addr):
+    """Determine which network an IP address belongs to based on subnet matching."""
+    if not ip_addr:
+        return None
+    
+    try:
+        ip = ip_address(ip_addr)
+        # Check all networks to see if this IP is in their subnet
+        for network in Network.query.all():
+            if network.subnet:
+                try:
+                    net = ip_network(network.subnet, strict=False)
+                    if ip in net:
+                        return network
+                except (AddressValueError, ValueError):
+                    continue
+    except (AddressValueError, ValueError):
+        pass
+    
+    return None
+
+
 @bp.route("/graph", methods=["GET"])
 def get_graph():
     """Return full graph data: nodes + edges for Cytoscape.js."""
     nodes = []
     edges = []
 
-    # Collect all nodes
+    # Collect all nodes with additional metadata (exclude networks)
     for entity_type, model in ENTITY_MAP.items():
+        # Skip networks - they'll be shown in a separate panel
+        if entity_type == "networks":
+            continue
+            
         for item in model.query.all():
-            nodes.append({
-                "data": {
-                    "id": f"{entity_type}-{item.id}",
-                    "label": item.name,
-                    "type": entity_type,
-                    "entity_id": item.id,
-                }
-            })
+            # Assign ranks for hierarchical layout
+            rank_map = {
+                "hardware": 0,
+                "vms": 1,
+                "apps": 2,
+                "storage": 2,
+                "misc": 3,
+            }
+            node_data = {
+                "id": f"{entity_type}-{item.id}",
+                "label": item.name,
+                "type": entity_type,
+                "entity_id": item.id,
+                "rawName": item.name,
+                "rank": rank_map.get(entity_type, 3),
+            }
+            
+            # If icon exists, distinguish between image (data URL) and emoji
+            if hasattr(item, "icon") and item.icon:
+                # Check if it's an image data URL
+                if item.icon.startswith("data:image/"):
+                    node_data["imageIcon"] = item.icon
+                    node_data["label"] = ""  # No text label for images
+                else:
+                    # It's an emoji or text icon
+                    node_data["icon"] = item.icon
+                    node_data["label"] = item.icon  # Only show the icon
+            
+            # Automatically determine network membership based on IP address
+            if hasattr(item, "ip_address") and item.ip_address:
+                network = get_network_for_ip(item.ip_address)
+                if network:
+                    node_data["networkId"] = network.id
+                    node_data["networkName"] = network.name
+                    # Use network color or default if not set
+                    node_data["networkColor"] = network.color or "#E74C3C"
+            
+            nodes.append({"data": node_data})
 
     # Edges from FK relationships
     for vm in VM.query.all():
@@ -81,15 +138,7 @@ def get_graph():
                 }
             })
 
-    # Edges from network memberships
-    for member in NetworkMember.query.all():
-        edges.append({
-            "data": {
-                "source": f"networks-{member.network_id}",
-                "target": f"{member.member_type}-{member.member_id}",
-                "label": "network",
-            }
-        })
+    # Skip network membership edges since networks aren't nodes anymore
 
     # Edges from generic relationships
     for rel in Relationship.query.all():
@@ -113,6 +162,21 @@ def get_graph():
         })
 
     return jsonify(nodes=nodes, edges=edges)
+
+
+@bp.route("/networks", methods=["GET"])
+def get_networks():
+    """Return all networks for display in a separate panel."""
+    networks = []
+    for network in Network.query.all():
+        networks.append({
+            "id": network.id,
+            "name": network.name,
+            "color": network.color or "#E74C3C",  # Default red if no color set
+            "vlan_id": network.vlan_id,
+            "notes": network.notes,
+        })
+    return jsonify(networks=networks)
 
 
 @bp.route("/layout", methods=["GET"])

@@ -1,4 +1,6 @@
 <script>
+  import IconPicker from "./IconPicker.svelte";
+
   export let item = {};
 </script>
 
@@ -23,4 +25,5 @@
   <label>Serial Number<input type="text" bind:value={item.serial_number} /></label>
   <label>Location<input type="text" bind:value={item.location} /></label>
 </div>
+<IconPicker bind:value={item.icon} />
 <label>Notes<textarea bind:value={item.notes} rows="3"></textarea></label>

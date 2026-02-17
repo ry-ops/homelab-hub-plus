@@ -10,12 +10,13 @@ class Network(BaseMixin, db.Model):
     subnet = db.Column(db.Text)
     gateway = db.Column(db.Text)
     dns_servers = db.Column(db.Text)
+    color = db.Column(db.Text)
     notes = db.Column(db.Text)
 
     members = db.relationship("NetworkMember", backref="network", lazy="select", cascade="all, delete-orphan")
 
 
-class NetworkMember(db.Model):
+class NetworkMember(BaseMixin, db.Model):
     __tablename__ = "network_members"
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)

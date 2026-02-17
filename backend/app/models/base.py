@@ -29,6 +29,8 @@ class BaseMixin:
         return result
 
     def update_from_dict(self, data: dict) -> None:
+        # Get column names to only update actual columns, not relationships
+        column_names = {col.name for col in self.__table__.columns}
         for key, value in data.items():
-            if hasattr(self, key) and key not in ("id", "created_at", "updated_at"):
+            if key in column_names and key not in ("id", "created_at", "updated_at"):
                 setattr(self, key, value)

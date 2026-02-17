@@ -3,7 +3,7 @@ from flask import jsonify
 from ..models import db, VM
 from ._crud_factory import create_crud_blueprint
 
-bp = create_crud_blueprint("vms", VM)
+bp = create_crud_blueprint("vms", VM, detail_route=False)
 
 
 @bp.route("/<int:item_id>", methods=["GET"], endpoint="get_vm_detail")

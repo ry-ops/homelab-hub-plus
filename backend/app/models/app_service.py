@@ -10,9 +10,11 @@ class AppService(BaseMixin, db.Model):
     name = db.Column(db.Text, nullable=False)
     description = db.Column(db.Text)
     hostname = db.Column(db.Text)
+    ip_address = db.Column(db.Text)
     external_hostname = db.Column(db.Text)
     port = db.Column(db.Integer)
-    url = db.Column(db.Text)
+    https = db.Column(db.Boolean, default=False)
+    icon = db.Column(db.Text)
     notes = db.Column(db.Text)
 
     __table_args__ = (

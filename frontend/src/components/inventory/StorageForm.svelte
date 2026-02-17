@@ -1,6 +1,7 @@
 <script>
   import { onMount } from "svelte";
   import { get } from "../../lib/api.js";
+  import IconPicker from "./IconPicker.svelte";
 
   export let item = {};
 
@@ -72,8 +73,9 @@
 </div>
 <div class="grid">
   <label>Drive Count<input type="number" bind:value={item.drive_count} /></label>
-  <label>Raw Space (GB)<input type="number" step="0.1" bind:value={item.raw_space_gb} /></label>
-  <label>Usable Space (GB)<input type="number" step="0.1" bind:value={item.usable_space_gb} /></label>
+  <label>Raw Space (TB)<input type="number" step="0.01" bind:value={item.raw_space_tb} /></label>
+  <label>Usable Space (TB)<input type="number" step="0.01" bind:value={item.usable_space_tb} /></label>
 </div>
 <label>Filesystem<input type="text" bind:value={item.filesystem} placeholder="ZFS, EXT4, BTRFS..." /></label>
+<IconPicker bind:value={item.icon} />
 <label>Notes<textarea bind:value={item.notes} rows="3"></textarea></label>

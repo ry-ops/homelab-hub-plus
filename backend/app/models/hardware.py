@@ -16,6 +16,7 @@ class Hardware(BaseMixin, db.Model):
     model = db.Column(db.Text)
     serial_number = db.Column(db.Text)
     location = db.Column(db.Text)
+    icon = db.Column(db.Text)
     notes = db.Column(db.Text)
 
     vms = db.relationship("VM", backref="hardware", lazy="select")

@@ -1,7 +1,6 @@
 <script>
-  import { onMount } from "svelte";
   import { push } from "svelte-spa-router";
-  import { get, del } from "../../lib/api.js";
+  import { get, post, del } from "../../lib/api.js";
   import { addToast } from "../../lib/stores.js";
   import EntityDetail from "./EntityDetail.svelte";
 
@@ -15,10 +14,10 @@
   const COLUMNS = {
     hardware: ["name", "hostname", "ip_address", "os", "cpu", "ram_gb"],
     vms: ["name", "hostname", "ip_address", "os", "cpu_cores", "ram_gb"],
-    apps: ["name", "hostname", "external_hostname", "port"],
-    storage: ["name", "storage_type", "raid_type", "raw_space_gb", "usable_space_gb"],
+    apps: ["name", "hostname", "ip_address", "external_hostname", "port"],
+    storage: ["name", "storage_type", "raid_type", "raw_space_tb", "usable_space_tb"],
     networks: ["name", "vlan_id", "subnet", "gateway"],
-    misc: ["name", "category", "description"],
+    misc: ["name", "category", "hostname", "ip_address"],
   };
 
   const LABELS = {
@@ -27,8 +26,8 @@
     cpu_cores: "CPU Cores",
     external_hostname: "External Host",
     vlan_id: "VLAN ID",
-    raw_space_gb: "Raw (GB)",
-    usable_space_gb: "Usable (GB)",
+    raw_space_tb: "Raw (TB)",
+    usable_space_tb: "Usable (TB)",
     storage_type: "Type",
     raid_type: "RAID",
   };
@@ -41,6 +40,7 @@
 
   async function loadItems() {
     loading = true;
+    items = []; // Clear items before loading
     try {
       const res = await get(`/${type}`);
       items = res.data;
@@ -50,6 +50,7 @@
     loading = false;
   }
 
+  // Reload whenever type changes
   $: type, loadItems();
 
   $: filtered = search
@@ -65,6 +66,23 @@
     try {
       await del(`/${type}/${id}`);
       addToast("Deleted", "success");
+      loadItems();
+    } catch (e) {
+      addToast(e.message, "error");
+    }
+  }
+
+  async function duplicateItem(item) {
+    try {
+      // Create a copy of the item
+      const duplicate = { ...item };
+      // Remove id and update name
+      delete duplicate.id;
+      duplicate.name = `Copy of ${item.name}`;
+      
+      // Create the duplicate
+      await post(`/${type}`, duplicate);
+      addToast("Duplicated successfully", "success");
       loadItems();
     } catch (e) {
       addToast(e.message, "error");
@@ -114,9 +132,14 @@
                 <td>{item[col] ?? ""}</td>
               {/each}
               <td>
-                <button class="outline secondary small" on:click|stopPropagation={() => deleteItem(item.id)}>
-                  Delete
-                </button>
+                <div class="button-group">
+                  <button class="outline secondary small" on:click|stopPropagation={() => duplicateItem(item)}>
+                    Duplicate
+                  </button>
+                  <button class="outline secondary small" on:click|stopPropagation={() => deleteItem(item.id)}>
+                    Delete
+                  </button>
+                </div>
               </td>
             </tr>
           {/each}
@@ -169,5 +192,10 @@
   .small {
     padding: 0.25rem 0.5rem;
     font-size: 0.8rem;
+  }
+  .button-group {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
   }
 </style>

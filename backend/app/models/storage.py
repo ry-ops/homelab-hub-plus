@@ -11,9 +11,10 @@ class Storage(BaseMixin, db.Model):
     storage_type = db.Column(db.Text)
     raid_type = db.Column(db.Text)
     drive_count = db.Column(db.Integer)
-    raw_space_gb = db.Column(db.Float)
-    usable_space_gb = db.Column(db.Float)
+    raw_space_tb = db.Column(db.Float)
+    usable_space_tb = db.Column(db.Float)
     filesystem = db.Column(db.Text)
+    icon = db.Column(db.Text)
     notes = db.Column(db.Text)
 
     __table_args__ = (

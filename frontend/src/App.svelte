@@ -8,12 +8,12 @@
 
   const routes = {
     "/": InventoryPage,
-    "/docs": DocsPage,
-    "/docs/:id": DocsPage,
     "/inventory": InventoryPage,
     "/inventory/:type": InventoryPage,
     "/inventory/:type/:id": InventoryPage,
     "/map": MapPage,
+    "/docs": DocsPage,
+    "/docs/:id": DocsPage,
   };
 </script>
 
