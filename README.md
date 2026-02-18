@@ -24,15 +24,21 @@ A self-hosted web application for managing and visualizing home lab infrastructu
 | Frontend | Svelte 4, Vite 5, Cytoscape.js, ByteMD, Pico CSS |
 | Backend | Python 3.12, Flask 3, SQLAlchemy 2, Alembic |
 | Database | SQLite (default, configurable) |
-| Deployment | Docker, Docker Compose, Gunicorn |
-
+| Deployment | Docker, Docker Compose, Gunicorn || Platforms | Linux (x86_64, ARM64), macOS, Windows |
 ## Requirements
 
 - **Node.js 22+** (for frontend development)
 - **Python 3.12+** (for backend development)
 - **Docker** (optional, for containerized deployment)
 
+**Supported Platforms:**
+- Linux (x86_64, ARM64) — including Raspberry Pi 4+, Orange Pi, etc.
+- macOS (Intel & Apple Silicon)
+- Windows (native or WSL2)
+
 ## Quick Start (Docker)
+
+Works on x86_64, ARM64, and other supported platforms. Docker will automatically pull the correct image for your system.
 
 ```bash
 docker run -d \
