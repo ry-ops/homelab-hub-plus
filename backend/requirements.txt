@@ -1,6 +1,17 @@
 flask==3.0.3
 flask-cors==5.0.1
 flask-sqlalchemy==3.1.1
+flask-caching==2.3.0
 sqlalchemy==2.0.36
 alembic==1.14.1
 gunicorn==23.0.0
+
+# Redis
+redis==5.2.1
+
+# Qdrant + embeddings
+qdrant-client==1.12.1
+sentence-transformers==3.3.1
+
+# Async ping for health checks
+icmplib==3.0.4

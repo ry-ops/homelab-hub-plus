@@ -1,10 +1,17 @@
 from flask import Blueprint, jsonify, request
 
 from ..models import db
+from ..services.cache import cache
+from ..services.search import SearchService
 
 
 def create_crud_blueprint(name, model_class, url_prefix=None, detail_route=True):
-    """Generate a Flask Blueprint with standard CRUD endpoints for a model."""
+    """Generate a Flask Blueprint with standard CRUD endpoints for a model.
+
+    Automatically:
+    - Invalidates the map graph cache on writes
+    - Upserts/deletes Qdrant vectors on writes
+    """
     prefix = url_prefix or f"/api/{name}"
     bp = Blueprint(name, __name__, url_prefix=prefix)
 
@@ -29,6 +36,8 @@ def create_crud_blueprint(name, model_class, url_prefix=None, detail_route=True)
             item.update_from_dict(data)
             db.session.add(item)
             db.session.commit()
+            _invalidate_graph_cache()
+            SearchService.upsert(name, item.id, item.to_dict())
             return jsonify(data=item.to_dict()), 201
         except Exception as e:
             db.session.rollback()
@@ -44,6 +53,8 @@ def create_crud_blueprint(name, model_class, url_prefix=None, detail_route=True)
         try:
             item.update_from_dict(data)
             db.session.commit()
+            _invalidate_graph_cache()
+            SearchService.upsert(name, item.id, item.to_dict())
             return jsonify(data=item.to_dict())
         except Exception as e:
             db.session.rollback()
@@ -55,6 +66,15 @@ def create_crud_blueprint(name, model_class, url_prefix=None, detail_route=True)
         item = db.get_or_404(model_class, item_id)
         db.session.delete(item)
         db.session.commit()
+        _invalidate_graph_cache()
+        SearchService.delete(name, item_id)
         return jsonify(message="Deleted"), 200
 
     return bp
+
+
+def _invalidate_graph_cache():
+    try:
+        cache.delete("map_graph")
+    except Exception:
+        pass

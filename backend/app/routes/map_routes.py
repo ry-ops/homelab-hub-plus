@@ -5,6 +5,7 @@ from ..models import (
     db, Hardware, VM, AppService, Storage, Network, Misc, Share,
     NetworkMember, Relationship, MapLayout, MapEdge,
 )
+from ..services.cache import cache
 
 bp = Blueprint("map", __name__, url_prefix="/api/map")
 
@@ -41,6 +42,7 @@ def get_network_for_ip(ip_addr):
 
 
 @bp.route("/graph", methods=["GET"])
+@cache.cached(timeout=60, key_prefix="map_graph")
 def get_graph():
     """Return full graph data: nodes + edges for Cytoscape.js."""
     nodes = []

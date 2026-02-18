@@ -4,6 +4,7 @@ from flask import Flask, jsonify, send_from_directory
 
 from .config import Config
 from .models import db
+from .services.cache import init_cache
 
 
 def create_app(config_class=Config):
@@ -13,6 +14,7 @@ def create_app(config_class=Config):
     app.config.from_object(config_class)
 
     db.init_app(app)
+    init_cache(app)
 
     # Enable CORS for development
     try:
