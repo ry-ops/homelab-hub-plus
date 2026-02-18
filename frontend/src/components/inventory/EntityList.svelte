@@ -3,6 +3,7 @@
   import { get, post, del } from "../../lib/api.js";
   import { addToast } from "../../lib/stores.js";
   import Modal from "../Modal.svelte";
+  import HealthBadge from "../HealthBadge.svelte";
   import HardwareForm from "./HardwareForm.svelte";
   import VmForm from "./VmForm.svelte";
   import AppForm from "./AppForm.svelte";
@@ -37,6 +38,9 @@
     networks: ["name", "vlan_id", "subnet", "gateway"],
     misc: ["name", "category", "hostname", "ip_address"],
   };
+
+  // Entity types that have an ip_address field and should show a health badge
+  const HEALTH_TYPES = new Set(["hardware", "vms", "apps", "misc"]);
 
   const LABELS = {
     ip_address: "IP Address",
@@ -189,6 +193,9 @@
                 {/if}
               </th>
             {/each}
+            {#if HEALTH_TYPES.has(type)}
+              <th class="status-col">Status</th>
+            {/if}
             <th></th>
           </tr>
         </thead>
@@ -198,6 +205,15 @@
               {#each columns as col}
                 <td>{item[col] ?? ""}</td>
               {/each}
+              {#if HEALTH_TYPES.has(type)}
+                <td class="status-col" on:click|stopPropagation>
+                  {#if item.ip_address || item.hostname}
+                    <HealthBadge host={item.ip_address || item.hostname} />
+                  {:else}
+                    <span class="no-host">—</span>
+                  {/if}
+                </td>
+              {/if}
               <td>
                 <div class="button-group">
                   <button class="outline secondary small" on:click|stopPropagation={() => duplicateItem(item)}>
@@ -340,5 +356,15 @@
   .btn-delete:hover {
     background: rgba(220, 53, 69, 0.25) !important;
     border-color: rgba(220, 53, 69, 0.5) !important;
+  }
+
+  .status-col {
+    white-space: nowrap;
+    width: 1%;
+  }
+
+  .no-host {
+    color: #555;
+    font-size: 0.85rem;
   }
 </style>

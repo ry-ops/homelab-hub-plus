@@ -31,3 +31,23 @@ export function patch(path, data) {
 export function del(path) {
   return request(path, { method: "DELETE" });
 }
+
+/**
+ * Semantic search via Qdrant.
+ * Returns [{ entity_type, entity_id, name, score }, ...]
+ */
+export function searchSemantic(q, limit = 20) {
+  return request(`/search?q=${encodeURIComponent(q)}&limit=${limit}`);
+}
+
+/**
+ * Ping one or more hosts.
+ * hosts: string[] — IP addresses or hostnames
+ * Returns { [host]: { alive, latency_ms, method } }
+ */
+export function pingHosts(hosts) {
+  return request("/health-check", {
+    method: "POST",
+    body: JSON.stringify({ hosts }),
+  });
+}

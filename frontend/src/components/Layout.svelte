@@ -1,5 +1,6 @@
 <script>
   import Sidebar from "./Sidebar.svelte";
+  import SearchBar from "./SearchBar.svelte";
 
   // In production (Docker), use relative URLs. In dev, use explicit URL for proxy.
   const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:5001');
@@ -70,7 +71,10 @@
 
 <div class="layout">
   <header class="header">
-    <h1>Home Lab Hub</h1>
+    <h1>Home Lab Hub+</h1>
+    <div class="header-center">
+      <SearchBar />
+    </div>
     <div class="header-actions">
       <button class="btn btn-primary" on:click={exportDatabase}>Export Data</button>
       <button class="btn btn-secondary" on:click={triggerImport}>Import Data</button>
@@ -100,6 +104,15 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 1rem;
+  }
+
+  .header-center {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    max-width: 400px;
+    margin: 0 auto;
   }
   
   .header h1 {
