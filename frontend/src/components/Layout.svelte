@@ -70,7 +70,7 @@
 
 <div class="layout">
   <header class="header">
-    <h1>HomeLab Hub</h1>
+    <h1>Home Lab Hub</h1>
     <div class="header-actions">
       <button class="btn btn-primary" on:click={exportDatabase}>Export Data</button>
       <button class="btn btn-secondary" on:click={triggerImport}>Import Data</button>

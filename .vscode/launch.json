@@ -8,7 +8,6 @@
       "module": "flask",
       "args": ["run", "--port", "5001", "--debug"],
       "cwd": "${workspaceFolder}/backend",
-      "python": "${workspaceFolder}/backend/.venv/bin/python",
       "env": {
         "FLASK_APP": "wsgi:app"
       },
@@ -21,7 +20,10 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "cwd": "${workspaceFolder}/frontend",
-      "console": "integratedTerminal"
+      "console": "integratedTerminal",
+      "windows": {
+        "runtimeExecutable": "npm.cmd"
+      }
     }
   ],
   "compounds": [
