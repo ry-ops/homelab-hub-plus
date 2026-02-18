@@ -65,6 +65,190 @@ The application will be available at `http://localhost:8000`.
 
 Data is persisted in the `./data/` directory.
 
+## Non-Docker Deployment
+
+Deploy Home Lab Hub directly on your system without Docker containers.
+
+### Prerequisites
+
+- **Python 3.12+**
+- **Node.js 22+** 
+- **pip** (Python package manager)
+- **npm** (Node package manager)
+- A web server (Nginx/Apache, optional for reverse proxy)
+
+### Step 1: Clone/Download the Repository
+
+```bash
+git clone https://github.com/raidowl/homelab-hub.git
+cd homelab-hub
+```
+
+### Step 2: Backend Setup
+
+```bash
+cd backend
+
+# Create Python virtual environment
+python3 -m venv .venv
+
+# Activate virtual environment
+# On Linux/macOS:
+source .venv/bin/activate
+# On Windows:
+.venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### Step 3: Frontend Setup & Build
+
+```bash
+cd ../frontend
+
+# Install Node dependencies
+npm install
+
+# Build for production
+npm run build
+```
+
+The built frontend will be in the `frontend/dist/` directory.
+
+### Step 4: Database Initialization
+
+From the `backend/` directory (with virtual environment activated):
+
+```bash
+# Apply any pending migrations
+alembic upgrade head
+```
+
+The application will automatically create the SQLite database at `data/homelab-hub.db` on first run.
+
+### Step 5: Run the Application
+
+#### Option A: Development (Single Process)
+
+From the `backend/` directory:
+
+```bash
+python wsgi.py
+```
+
+Access the application at `http://localhost:8000` (the built frontend files are served automatically).
+
+#### Option B: Production (Gunicorn + Reverse Proxy)
+
+From the `backend/` directory, run Gunicorn:
+
+```bash
+gunicorn -w 4 -b 127.0.0.1:5001 wsgi:app
+```
+
+- `-w 4`: Number of worker processes (adjust based on CPU cores)
+- `-b 127.0.0.1:5001`: Bind to localhost on port 5001
+
+Then set up a reverse proxy (Nginx recommended):
+
+**Nginx Configuration** (`/etc/nginx/sites-available/homelab-hub`):
+
+```nginx
+server {
+    listen 8000;
+    server_name localhost;  # Or your domain name
+    client_max_body_size 10M;
+
+    # Serve static frontend files
+    location / {
+        alias /path/to/homelab-hub/frontend/dist/;
+        try_files $uri /index.html;
+    }
+
+    # Proxy API requests to Gunicorn
+    location /api/ {
+        proxy_pass http://127.0.0.1:5001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Enable and restart Nginx:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/homelab-hub /etc/nginx/sites-enabled/
+sudo systemctl reload nginx
+```
+
+### Step 6 (Optional): Auto-Start with Systemd
+
+Create a systemd service file for auto-start on boot.
+
+**Create `/etc/systemd/system/homelab-hub.service`:**
+
+```ini
+[Unit]
+Description=Home Lab Hub
+After=network.target
+
+[Service]
+Type=simple
+User=homelab
+WorkingDirectory=/path/to/homelab-hub/backend
+Environment="FLASK_ENV=production"
+Environment="DATABASE_URL=sqlite:////path/to/homelab-hub/data/homelab-hub.db"
+ExecStart=/path/to/homelab-hub/backend/.venv/bin/gunicorn -w 4 -b 127.0.0.1:5001 wsgi:app
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Replace `/path/to/homelab-hub` with your actual installation path.
+
+Enable and start the service:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable homelab-hub
+sudo systemctl start homelab-hub
+```
+
+Check status:
+
+```bash
+sudo systemctl status homelab-hub
+```
+
+### Configuration
+
+Set environment variables as needed:
+
+```bash
+export FLASK_ENV=production
+export DATABASE_URL=sqlite:////data/homelab-hub/homelab-hub.db
+```
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | `sqlite:///data/homelab-hub.db` | SQLAlchemy database URI |
+| `FLASK_ENV` | `production` | Flask environment (`production` or `development`) |
+
+### Data Backup
+
+Export your data regularly:
+
+```bash
+curl -X GET http://localhost:8000/api/inventory/export -o homelab-export-$(date +%Y%m%d).json
+```
+
+Keep backups safe to restore in case of data loss.
+
 ## Development Setup
 
 ### Backend
