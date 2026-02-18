@@ -4,6 +4,7 @@
   import dagre from "cytoscape-dagre";
   import { get, put } from "../../lib/api.js";
   import { addToast } from "../../lib/stores.js";
+  import HealthBadge from "../HealthBadge.svelte";
 
   cytoscape.use(dagre);
 
@@ -394,6 +395,14 @@
           <div class="info-item">
             <span class="info-label">IP Address:</span>
             <span class="info-value">{selectedNodeDetails.ip_address || selectedNodeDetails.ip}</span>
+          </div>
+        {/if}
+        {#if selectedNodeDetails.ip_address || selectedNodeDetails.hostname}
+          <div class="info-item">
+            <span class="info-label">Status:</span>
+            <span class="info-value">
+              <HealthBadge host={selectedNodeDetails.ip_address || selectedNodeDetails.hostname} />
+            </span>
           </div>
         {/if}
         {#if selectedNodeDetails.os}
