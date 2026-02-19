@@ -18,7 +18,7 @@ depends_on = None
 
 def upgrade():
     # Add ip_address column to apps table
-    op.add_column('apps', sa.Column('ip_address', sa.Text(), nullable=True))
+    op.add_column('apps', sa.Column('ip_address', sa.Text(), nullable=True), if_not_exists=True)
 
 
 def downgrade():

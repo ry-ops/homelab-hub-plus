@@ -18,10 +18,10 @@ depends_on = None
 
 def upgrade():
     # Add mac_address column to hardware table
-    op.add_column('hardware', sa.Column('mac_address', sa.Text(), nullable=True))
+    op.add_column('hardware', sa.Column('mac_address', sa.Text(), nullable=True), if_not_exists=True)
     
     # Add mac_address column to vms table
-    op.add_column('vms', sa.Column('mac_address', sa.Text(), nullable=True))
+    op.add_column('vms', sa.Column('mac_address', sa.Text(), nullable=True), if_not_exists=True)
 
 
 def downgrade():
