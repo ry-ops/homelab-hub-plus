@@ -71,6 +71,35 @@ The application will be available at `http://localhost:8000`.
 
 Data is persisted in the `./data/` directory.
 
+## Upgrading
+
+**Docker users:** Database migrations run automatically on container startup. To upgrade:
+
+```bash
+# Pull the latest image
+docker pull raidowl/homelab-hub:latest
+
+# Restart your container
+docker compose down
+docker compose up -d
+
+# Or if using docker run:
+docker stop homelab-hub
+docker rm homelab-hub
+docker run -d \
+  --name homelab-hub \
+  -p 8000:8000 \
+  -v ./data:/data \
+  --restart unless-stopped \
+  raidowl/homelab-hub:latest
+```
+
+**Best practice:** Always backup your `./data/` directory before upgrading:
+
+```bash
+cp -r ./data ./data-backup-$(date +%Y%m%d)
+```
+
 ## Non-Docker Deployment
 
 Deploy Home Lab Hub directly on your system without Docker containers.

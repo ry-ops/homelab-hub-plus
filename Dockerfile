@@ -24,9 +24,12 @@ COPY --from=frontend-build /build/dist/ /app/static/
 
 RUN mkdir -p /data
 
+# Make entrypoint script executable
+RUN chmod +x /app/docker-entrypoint.sh
+
 ENV DATABASE_URL=sqlite:////data/homelab-hub.db
 ENV FLASK_ENV=production
 
 EXPOSE 8000
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "1", "--timeout", "120", "wsgi:app"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
