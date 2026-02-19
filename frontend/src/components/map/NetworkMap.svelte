@@ -15,8 +15,15 @@
   let selectedNode = null;
   let selectedNodeDetails = null;
   let loadingDetails = false;
-  let hideMisc = false;
   let tooltip = { visible: false, text: "", x: 0, y: 0 };
+  
+  // Visibility toggles for each node type
+  let showHardware = true;
+  let showVms = true;
+  let showApps = true;
+  let showStorage = true;
+  let showShares = true;
+  let showMisc = true;
 
   async function loadNodeDetails(node) {
     if (!node) return;
@@ -213,14 +220,25 @@
     }
   });
 
-  // Reactive statement to hide/show misc nodes
+  // Reactive statement to hide/show nodes by type
   $: if (cy) {
-    const miscNodes = cy.nodes('[type="misc"]');
-    if (hideMisc) {
-      miscNodes.hide();
-    } else {
-      miscNodes.show();
-    }
+    const nodeTypes = [
+      { type: 'hardware', show: showHardware },
+      { type: 'vms', show: showVms },
+      { type: 'apps', show: showApps },
+      { type: 'storage', show: showStorage },
+      { type: 'shares', show: showShares },
+      { type: 'misc', show: showMisc }
+    ];
+    
+    nodeTypes.forEach(({ type, show }) => {
+      const nodes = cy.nodes(`[type="${type}"]`);
+      if (show) {
+        nodes.show();
+      } else {
+        nodes.hide();
+      }
+    });
   }
 
   onDestroy(() => {
@@ -347,13 +365,6 @@
     runDagreLayout();
     setTimeout(saveLayout, 500);
   }
-
-  export function resetLayout() {
-    if (!cy) return;
-    cy.nodes().unlock();
-    runDagreLayout();
-    setTimeout(saveLayout, 500);
-  }
 </script>
 
 <div class="cy-container" bind:this={container}></div>
@@ -395,6 +406,12 @@
           <div class="info-item">
             <span class="info-label">IP Address:</span>
             <span class="info-value">{selectedNodeDetails.ip_address || selectedNodeDetails.ip}</span>
+          </div>
+        {/if}
+        {#if selectedNodeDetails.mac_address}
+          <div class="info-item">
+            <span class="info-label">MAC Address:</span>
+            <span class="info-value">{selectedNodeDetails.mac_address}</span>
           </div>
         {/if}
         {#if selectedNodeDetails.ip_address || selectedNodeDetails.hostname}
@@ -542,10 +559,33 @@
   
   <div class="panel-divider"></div>
   
-  <label class="toggle-option">
-    <input type="checkbox" bind:checked={hideMisc} />
-    <span>Hide misc items</span>
-  </label>
+  <h3>Show Inventory</h3>
+  <div class="toggle-list">
+    <label class="toggle-option">
+      <input type="checkbox" bind:checked={showHardware} />
+      <span>Hardware</span>
+    </label>
+    <label class="toggle-option">
+      <input type="checkbox" bind:checked={showVms} />
+      <span>VMs</span>
+    </label>
+    <label class="toggle-option">
+      <input type="checkbox" bind:checked={showApps} />
+      <span>Apps</span>
+    </label>
+    <label class="toggle-option">
+      <input type="checkbox" bind:checked={showStorage} />
+      <span>Storage</span>
+    </label>
+    <label class="toggle-option">
+      <input type="checkbox" bind:checked={showShares} />
+      <span>Shares</span>
+    </label>
+    <label class="toggle-option">
+      <input type="checkbox" bind:checked={showMisc} />
+      <span>Misc</span>
+    </label>
+  </div>
 </div>
 
 <div class="legend">
@@ -747,6 +787,12 @@
     height: 1px;
     background: rgba(255, 255, 255, 0.1);
     margin: 0.75rem 0;
+  }
+  .toggle-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
   }
   .toggle-option {
     display: flex;

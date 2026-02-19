@@ -40,10 +40,11 @@
 
 | Layer | Technology |
 |---|---|
-| Frontend | Svelte 4, Vite, Cytoscape.js, ByteMD, Pico CSS |
-| Backend | Python 3.12, Flask 3, SQLAlchemy 2, Alembic |
+| Frontend | Svelte 4, Vite 5, Cytoscape.js, ByteMD, Pico CSS |
+| Backend | Python 3.14, Flask 3, SQLAlchemy 2, Alembic |
 | Database | SQLite |
 | Deployment | Docker, Docker Compose, Gunicorn |
+| Platforms | Linux (x86_64, ARM64), macOS, Windows |
 
 ---
 
@@ -99,6 +100,8 @@ Transport: `StdioServerTransport` — works out of the box with Claude Desktop a
 ---
 
 ## Quick start
+
+Works on x86_64, ARM64, and other supported platforms. Docker will automatically pull the correct image for your system.
 
 ```bash
 git clone https://github.com/your-username/homelab-hub-plus
@@ -160,6 +163,44 @@ Add to `~/.config/claude/claude_desktop_config.json`:
   }
 }
 ```
+
+## Upgrading
+
+**Docker users:** Database migrations run automatically on container startup. To upgrade:
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+**Best practice:** Always backup your `./data/` directory before upgrading:
+
+```bash
+cp -r ./data ./data-backup-$(date +%Y%m%d)
+```
+
+---
+
+## Non-Docker deployment
+
+### Prerequisites
+
+- **Python 3.14+**, **Node.js 24+**, **pip**, **npm**
+
+### Setup
+
+```bash
+# Backend
+cd backend
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+alembic upgrade head
+
+# Frontend
+cd ../frontend
+npm install && npm run build
+```
+
+Run with `python wsgi.py` (dev) or Gunicorn behind Nginx (prod).
 
 ---
 
