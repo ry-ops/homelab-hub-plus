@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # -------------------------------------------------------------------------
+  # MCP server — TypeScript lint + build
+  # -------------------------------------------------------------------------
+  mcp:
+    name: MCP (TypeScript)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: mcp/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true   # warn but don't fail until eslint config is added
+
+  # -------------------------------------------------------------------------
+  # Backend — Python lint (Ruff) + import check
+  # -------------------------------------------------------------------------
+  backend:
+    name: Backend (Python)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          allow-prereleases: true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: uv pip install --system -r backend/requirements.txt
+
+      - name: Lint with Ruff
+        run: |
+          uv pip install --system ruff
+          ruff check backend/app/
+        continue-on-error: true   # warn but don't fail until baseline is clean
+
+      - name: Check imports
+        run: python -c "import app"
+        working-directory: backend
+
+  # -------------------------------------------------------------------------
+  # Frontend — build check
+  # -------------------------------------------------------------------------
+  frontend:
+    name: Frontend (Svelte/Vite)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
