@@ -298,6 +298,14 @@ homelab-hub-plus/
 
 ---
 
+## Acknowledgements
+
+**[RaidOwl/homelab-hub](https://github.com/RaidOwl/homelab-hub)** — the upstream project this fork is built on. All the core inventory, map, and docs UI comes from here. Huge thanks to RaidOwl and contributors for building such a clean, hackable foundation.
+
+**[Timmoth/RackPeek](https://github.com/Timmoth/RackPeek)** — inspiration for rack-aware infrastructure visualization and fingerprinting ideas. Worth a look if you want deep hardware topology views.
+
+---
+
 ## License
 
 MIT — same as upstream. See [LICENSE](LICENSE).
