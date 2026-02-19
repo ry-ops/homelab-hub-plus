@@ -1,10 +1,29 @@
 {
   "name": "homelab-hub-mcp",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "MCP server for homelab-hub-plus — Claude-accessible inventory management",
   "author": "ry-ops",
   "license": "MIT",
   "type": "module",
+  "homepage": "https://github.com/ry-ops/homelab-hub-plus#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ry-ops/homelab-hub-plus.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ry-ops/homelab-hub-plus/issues"
+  },
+  "keywords": [
+    "homelab",
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "inventory",
+    "self-hosted"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "homelab-hub-mcp": "./bin/cli.js"
   },
