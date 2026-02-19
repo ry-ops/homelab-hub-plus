@@ -9,13 +9,14 @@ COPY frontend/ ./
 RUN npm run build
 
 # ---- Stage 2: Production image ----
-FROM python:3.14-alpine
+# Python 3.14 wheels are not yet available for torch/sentence-transformers.
+# Pinned to 3.12-slim until upstream wheels ship for 3.14.
+FROM python:3.12-slim
 WORKDIR /app
 
 COPY backend/requirements.txt .
-RUN --mount=from=ghcr.io/astral-sh/uv,source=/uv,target=/bin/uv \
-    uv pip install --system --compile-bytecode --no-cache-dir -r requirements.txt
-# bytecode compilation makes startup faster but the image bigger, see: https://docs.astral.sh/uv/pip/compatibility/#bytecode-compilation
+RUN pip install --no-cache-dir --upgrade pip==25.3 && \
+    pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ .
 
