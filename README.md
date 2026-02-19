@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/banner.svg" alt="homelab-hub+" width="860"/>
+  <img src="docs/banner.svg" alt="homelab-hub+" width="960"/>
 </div>
 
 <br/>
@@ -14,7 +14,7 @@
 | [Redis Caching](./Documentation/redis.md) | Cache config, TTLs, invalidation |
 | [Qdrant Semantic Search](./Documentation/qdrant.md) | Vector search, backfill, query API |
 | [Host Health Checks](./Documentation/health-checks.md) | ICMP/TCP ping, HealthBadge |
-| [MCP Server](./Documentation/mcp-server.md) | All 10 tools, Claude Desktop/Code setup |
+| [MCP Server](./Documentation/mcp-server.md) | All 11 tools, Claude Desktop/Code setup |
 | [CI/CD Pipeline](./Documentation/cicd.md) | GitHub Actions, multi-arch Docker builds |
 | [Auto-Discovery](./Documentation/auto-discovery.md) | Subnet/CIDR scanning, fingerprinting, bulk import |
 
@@ -96,6 +96,55 @@ Transport: `StdioServerTransport` — works out of the box with Claude Desktop a
 - Push tag `v1.2.3` → `:1.2.3` + `:1.2`
 - Platforms: `linux/amd64` + `linux/arm64`
 - Layer cache via GitHub Actions cache (`type=gha`)
+
+### Auto-Discovery
+Scan any subnet CIDR and get back live hosts with full fingerprinting — ping reachability, open port detection, SSH banner grab, HTTP title extraction, and automatic service fingerprinting (Proxmox, Cockpit, Kubernetes, VNC, SSH, and web servers). Select which hosts to import and they land directly in the inventory. Also exposed as an MCP tool so Claude can run scans on your behalf.
+
+---
+
+## Kubernetes
+
+Kubernetes support is on the roadmap. The plan is to extend homelab-hub+ to become a lightweight Kubernetes-aware inventory layer alongside the existing infrastructure tracking.
+
+### What's planned
+
+| Feature | Description |
+|---|---|
+| Cluster import | Connect to one or more clusters via kubeconfig or in-cluster service account |
+| Node inventory | Auto-populate hardware inventory from cluster nodes (labels, capacity, taints) |
+| Namespace browser | Browse namespaces and workloads from the inventory UI |
+| Pod health | Health check pods and surface status in the existing HealthBadge system |
+| MCP tools | `k8s_nodes()`, `k8s_pods(namespace)`, `k8s_apply(manifest)` for Claude-driven cluster ops |
+| Discovery integration | CIDR scan results that look like K8s API servers (port 6443) auto-suggest cluster import |
+
+### Current state
+
+The **Discovery Engine already fingerprints port 6443** — when you scan a subnet and see a host with `Kubernetes API` fingerprint, that's your future cluster candidate. The inventory `misc` type is the natural landing spot for clusters until a dedicated model lands.
+
+### Running in-cluster
+
+homelab-hub+ is designed to run as a Docker container and will eventually support deployment as a Kubernetes Deployment with:
+
+```yaml
+# Future: homelab-hub-plus as a K8s Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homelab-hub-plus
+spec:
+  replicas: 1
+  template:
+    spec:
+      serviceAccountName: homelab-hub-plus  # read-only cluster access
+      containers:
+        - name: homelab-hub-plus
+          image: ryops/homelab-hub-plus:latest
+          env:
+            - name: KUBERNETES_ENABLED
+              value: "true"
+```
+
+For now: deploy on a node or VM that has `kubectl` access to your cluster and point `KUBECONFIG` at it.
 
 ---
 
