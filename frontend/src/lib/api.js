@@ -1,10 +1,31 @@
 const BASE = "/api";
+const TOKEN_KEY = "homelab_api_token";
+
+export function setToken(token) {
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+  }
+}
+
+export function getToken() {
+  return localStorage.getItem(TOKEN_KEY) || "";
+}
 
 async function request(path, options = {}) {
+  const token = getToken();
+  const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
+
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...options.headers },
+    headers: { "Content-Type": "application/json", ...authHeader, ...options.headers },
     ...options,
   });
+
+  if (res.status === 401 || res.status === 403) {
+    throw new Error("Authentication required. Please set a valid API token in Settings.");
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || res.statusText);
@@ -50,4 +71,29 @@ export function pingHosts(hosts) {
     method: "POST",
     body: JSON.stringify({ hosts }),
   });
+}
+
+/**
+ * Trigger a full Qdrant backfill of all existing entities.
+ * Returns { indexed, by_type, errors, status }
+ */
+export function reindexSearch() {
+  return request("/search/index", { method: "POST" });
+}
+
+/**
+ * Scan a subnet CIDR for live hosts with port fingerprinting.
+ * Returns { hosts, total, alive, duration_ms }
+ */
+export function scanSubnet(cidr, concurrency = 50, timeout = 1.0) {
+  return post("/discovery/scan", { cidr, concurrency, timeout });
+}
+
+/**
+ * Import selected discovered hosts into inventory.
+ * hosts: [{ ip, type, name, hostname?, notes? }]
+ * Returns { imported, by_type, errors }
+ */
+export function importDiscovery(hosts) {
+  return post("/discovery/import", { hosts });
 }

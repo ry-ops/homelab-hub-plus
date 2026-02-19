@@ -11,6 +11,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - QDRANT_URL=http://qdrant:6333
       - QDRANT_COLLECTION=homelab
+      - API_TOKEN=${API_TOKEN:-}
     depends_on:
       - redis
       - qdrant
@@ -19,8 +20,6 @@ services:
   redis:
     image: redis:7-alpine
     container_name: homelab-hub-plus-redis
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     restart: unless-stopped
@@ -28,9 +27,6 @@ services:
   qdrant:
     image: qdrant/qdrant:latest
     container_name: homelab-hub-plus-qdrant
-    ports:
-      - "6333:6333"
-      - "6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
     restart: unless-stopped

@@ -23,6 +23,10 @@ def create_app(config_class=Config):
     except ImportError:
         pass
 
+    # Auth middleware — must be registered before blueprints
+    from .middleware.auth import register_auth_middleware
+    register_auth_middleware(app)
+
     # Register blueprints
     from .routes import register_blueprints
     register_blueprints(app)
@@ -32,12 +36,18 @@ def create_app(config_class=Config):
     def health():
         return jsonify(status="ok")
 
+    # Config — returns whether auth is required and the app version
+    @app.route("/api/config")
+    def api_config():
+        requires_auth = bool(app.config.get("API_TOKEN"))
+        return jsonify(requiresAuth=requires_auth, version="1.0.0")
+
     # SPA catch-all: serve index.html for all non-API routes
     @app.route("/", defaults={"path": ""})
     @app.route("/<path:path>")
     def serve_spa(path):
         # Skip API routes - they're handled by blueprints
-        api_prefixes = ("api/", "inventory/", "hardware/", "vms/", "apps/", 
+        api_prefixes = ("api/", "hardware/", "vms/", "apps/",
                        "storage/", "shares/", "networks/", "misc/", "documents/", "map/")
         if path.startswith(api_prefixes):
             return jsonify(error="Not found"), 404

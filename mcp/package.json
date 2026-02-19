@@ -1,0 +1,22 @@
+{
+  "name": "homelab-hub-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for homelab-hub-plus — Claude-accessible inventory management",
+  "type": "module",
+  "bin": {
+    "homelab-hub-mcp": "./bin/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node bin/cli.js start"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "commander": "^12.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
+  }
+}

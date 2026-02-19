@@ -20,3 +20,6 @@ class Config:
     # Qdrant — vector search
     QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost:6333")
     QDRANT_COLLECTION = os.environ.get("QDRANT_COLLECTION", "homelab")
+
+    # Auth — Bearer token. Empty string means dev mode (no auth).
+    API_TOKEN = os.environ.get("API_TOKEN", "")

@@ -14,6 +14,7 @@ def register_blueprints(app):
     from .map_routes import bp as map_bp
     from .search import bp as search_bp
     from .health_check import bp as health_check_bp
+    from .discovery import bp as discovery_bp
 
     app.register_blueprint(documents_bp)
     app.register_blueprint(hardware_bp)
@@ -27,3 +28,4 @@ def register_blueprints(app):
     app.register_blueprint(map_bp)
     app.register_blueprint(search_bp)
     app.register_blueprint(health_check_bp)
+    app.register_blueprint(discovery_bp)
