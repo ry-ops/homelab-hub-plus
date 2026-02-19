@@ -18,7 +18,7 @@ depends_on = None
 
 def upgrade():
     # Add https column to apps table
-    op.add_column('apps', sa.Column('https', sa.Boolean(), nullable=True, server_default='0'), if_not_exists=True)
+    op.add_column('apps', sa.Column('https', sa.Boolean(), nullable=True, server_default='0'))
 
 
 def downgrade():

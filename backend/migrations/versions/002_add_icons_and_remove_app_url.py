@@ -18,23 +18,23 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # Add icon column to hardware
-    op.add_column("hardware", sa.Column("icon", sa.Text, nullable=True), if_not_exists=True)
+    op.add_column("hardware", sa.Column("icon", sa.Text, nullable=True))
     
     # Add icon column to vms
-    op.add_column("vms", sa.Column("icon", sa.Text, nullable=True), if_not_exists=True)
+    op.add_column("vms", sa.Column("icon", sa.Text, nullable=True))
     
     # Add icon column to apps and remove url column
-    op.add_column("apps", sa.Column("icon", sa.Text, nullable=True), if_not_exists=True)
+    op.add_column("apps", sa.Column("icon", sa.Text, nullable=True))
     op.drop_column("apps", "url")
     
     # Add icon column to storage
-    op.add_column("storage", sa.Column("icon", sa.Text, nullable=True), if_not_exists=True)
+    op.add_column("storage", sa.Column("icon", sa.Text, nullable=True))
     
     # Add color column to networks
-    op.add_column("networks", sa.Column("color", sa.Text, nullable=True), if_not_exists=True)
+    op.add_column("networks", sa.Column("color", sa.Text, nullable=True))
     
     # Add icon column to misc
-    op.add_column("misc", sa.Column("icon", sa.Text, nullable=True), if_not_exists=True)
+    op.add_column("misc", sa.Column("icon", sa.Text, nullable=True))
 
 
 def downgrade() -> None:
