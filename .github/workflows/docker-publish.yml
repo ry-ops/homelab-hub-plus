@@ -23,7 +23,9 @@ jobs:
     name: Security Scan
     runs-on: ubuntu-latest
     # Docker Scout requires Docker Hub credentials not available to Dependabot PRs
-    if: github.actor != 'dependabot[bot]'
+    if: >
+      github.actor != 'dependabot[bot]' &&
+      !startsWith(github.head_ref, 'dependabot/')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
