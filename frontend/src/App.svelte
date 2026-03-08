@@ -4,6 +4,7 @@
   import DocsPage from "./pages/DocsPage.svelte";
   import InventoryPage from "./pages/InventoryPage.svelte";
   import MapPage from "./pages/MapPage.svelte";
+  import DashboardsPage from "./pages/DashboardsPage.svelte";
   import Toast from "./components/Toast.svelte";
 
   const routes = {
@@ -12,6 +13,7 @@
     "/inventory/:type": InventoryPage,
     "/inventory/:type/:id": InventoryPage,
     "/map": MapPage,
+    "/dashboards": DashboardsPage,
     "/docs": DocsPage,
     "/docs/:id": DocsPage,
   };
