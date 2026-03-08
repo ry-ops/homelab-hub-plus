@@ -32,10 +32,9 @@
     },
     {
       name: "Fabric Dashboard",
-      url: "https://hub.ry-ops.dev",
+      url: "https://fabric.ry-ops.dev",
       description: "Fabric SDK service overview",
       icon: "fabric",
-      note: "NodePort 32500",
     },
   ];
 </script>
