@@ -23,14 +23,12 @@ COPY backend/ .
 # Copy built frontend into Flask static directory
 COPY --from=frontend-build /build/dist/ /app/static/
 
-# Create non-root user and data directory
-RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser && \
-    mkdir -p /data && chown appuser:appuser /data
+# Create non-root user
+RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser
 
 # Make entrypoint script executable and ensure Unix line endings
 RUN sed -i 's/\r$//' /app/docker-entrypoint.sh && chmod +x /app/docker-entrypoint.sh
 
-ENV DATABASE_URL=sqlite:////data/homelab-hub.db
 ENV FLASK_ENV=production
 
 EXPOSE 8000

@@ -4,17 +4,16 @@ services:
     container_name: homelab-hub-plus
     ports:
       - "8000:8000"
-    volumes:
-      - ./data:/data
     environment:
-      - DATABASE_URL=sqlite:////data/homelab-hub.db
       - REDIS_URL=redis://redis:6379/0
-      - QDRANT_URL=http://qdrant:6333
-      - QDRANT_COLLECTION=homelab
+      - QDRANT_URL=${QDRANT_URL:-http://localhost:6333}
+      - QDRANT_COLLECTION=${QDRANT_COLLECTION:-homelab}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_REPO=${GITHUB_REPO:-ry-ops/homelab-hub-state}
+      - GITHUB_BRANCH=${GITHUB_BRANCH:-main}
       - API_TOKEN=${API_TOKEN:-}
     depends_on:
       - redis
-      - qdrant
     restart: unless-stopped
 
   redis:
@@ -24,13 +23,5 @@ services:
       - redis_data:/data
     restart: unless-stopped
 
-  qdrant:
-    image: qdrant/qdrant:latest
-    container_name: homelab-hub-plus-qdrant
-    volumes:
-      - qdrant_data:/qdrant/storage
-    restart: unless-stopped
-
 volumes:
   redis_data:
-  qdrant_data:

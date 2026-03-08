@@ -4,10 +4,6 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 
 class Config:
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        "DATABASE_URL", f"sqlite:///{os.path.join(basedir, '..', '..', 'data', 'homelab-hub.db')}"
-    )
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
     # Allow larger request bodies for base64 image uploads (5MB)
     MAX_CONTENT_LENGTH = 5 * 1024 * 1024
 
@@ -23,3 +19,9 @@ class Config:
 
     # Auth — Bearer token. Empty string means dev mode (no auth).
     API_TOKEN = os.environ.get("API_TOKEN", "")
+
+    # GitStore — GitHub-backed JSON persistence
+    GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
+    GITHUB_REPO = os.environ.get("GITHUB_REPO", "ry-ops/homelab-hub-state")
+    GITHUB_BRANCH = os.environ.get("GITHUB_BRANCH", "main")
+    GITSTORE_CACHE_TTL = int(os.environ.get("GITSTORE_CACHE_TTL", "300"))
