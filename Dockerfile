@@ -9,28 +9,27 @@ COPY frontend/ ./
 RUN npm run build
 
 # ---- Stage 2: Production image ----
-# Python 3.14 wheels are not yet available for torch/sentence-transformers.
-# Pinned to 3.12-slim until upstream wheels ship for 3.14.
 FROM python:3.12-slim
 WORKDIR /app
 
-COPY backend/requirements.txt .
+# Install torch CPU-only first to avoid pulling 3GB of CUDA wheels
 RUN pip install --no-cache-dir --upgrade pip==25.3 && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ .
 
 # Copy built frontend into Flask static directory
 COPY --from=frontend-build /build/dist/ /app/static/
 
-# Create non-root user and data directory
-RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser && \
-    mkdir -p /data && chown appuser:appuser /data
+# Create non-root user
+RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser
 
 # Make entrypoint script executable and ensure Unix line endings
 RUN sed -i 's/\r$//' /app/docker-entrypoint.sh && chmod +x /app/docker-entrypoint.sh
 
-ENV DATABASE_URL=sqlite:////data/homelab-hub.db
 ENV FLASK_ENV=production
 
 EXPOSE 8000

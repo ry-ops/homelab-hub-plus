@@ -4,17 +4,26 @@ services:
     container_name: homelab-hub-plus
     ports:
       - "8000:8000"
-    volumes:
-      - ./data:/data
     environment:
-      - DATABASE_URL=sqlite:////data/homelab-hub.db
+      - DATABASE_URL=postgresql://homelab:homelab@postgres:5432/homelab
       - REDIS_URL=redis://redis:6379/0
-      - QDRANT_URL=http://qdrant:6333
-      - QDRANT_COLLECTION=homelab
+      - QDRANT_URL=${QDRANT_URL:-http://localhost:6333}
+      - QDRANT_COLLECTION=${QDRANT_COLLECTION:-homelab}
       - API_TOKEN=${API_TOKEN:-}
     depends_on:
+      - postgres
       - redis
-      - qdrant
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: homelab-hub-plus-postgres
+    environment:
+      - POSTGRES_USER=homelab
+      - POSTGRES_PASSWORD=homelab
+      - POSTGRES_DB=homelab
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
 
   redis:
@@ -24,13 +33,6 @@ services:
       - redis_data:/data
     restart: unless-stopped
 
-  qdrant:
-    image: qdrant/qdrant:latest
-    container_name: homelab-hub-plus-qdrant
-    volumes:
-      - qdrant_data:/qdrant/storage
-    restart: unless-stopped
-
 volumes:
+  postgres_data:
   redis_data:
-  qdrant_data:

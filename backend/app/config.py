@@ -5,7 +5,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 class Config:
     SQLALCHEMY_DATABASE_URI = os.environ.get(
-        "DATABASE_URL", f"sqlite:///{os.path.join(basedir, '..', '..', 'data', 'homelab-hub.db')}"
+        "DATABASE_URL", "postgresql://homelab:homelab@localhost:5432/homelab"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     # Allow larger request bodies for base64 image uploads (5MB)
