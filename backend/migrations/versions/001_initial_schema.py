@@ -20,7 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 def add_column_if_not_exists(table_name, column):
     """Add a column only if it doesn't already exist."""
     try:
-        add_column_if_not_exists(table_name, column)
+        op.add_column(table_name, column)
     except OperationalError:
         # Column already exists, skip
         pass
