@@ -40,7 +40,7 @@ def create_app(config_class=Config):
     @app.route("/api/config")
     def api_config():
         requires_auth = bool(app.config.get("API_TOKEN"))
-        return jsonify(requiresAuth=requires_auth, version="1.0.0")
+        return jsonify(requiresAuth=requires_auth, version="1.0.1")
 
     # SPA catch-all: serve index.html for all non-API routes
     @app.route("/", defaults={"path": ""})
