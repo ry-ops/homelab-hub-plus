@@ -2,12 +2,18 @@
 Semantic search endpoint backed by Qdrant.
 
 GET /api/search?q=<query>[&limit=20]
+
+Returns ranked results with entity_type, entity_id, name, and score.
+Falls back gracefully if Qdrant is unavailable.
+
 POST /api/search/index
+
+One-time (idempotent) backfill of all existing entities into Qdrant.
+Returns { indexed, by_type, errors, status }.
 """
 from flask import Blueprint, jsonify, request
 
 from ..services.search import SearchService
-from ..services.gitstore import get_store
 
 bp = Blueprint("search", __name__, url_prefix="/api/search")
 
@@ -26,26 +32,36 @@ def semantic_search():
 @bp.route("/index", methods=["POST"])
 def index_all():
     """Backfill all existing entities into Qdrant (idempotent)."""
-    store = get_store()
-    entity_types = ["hardware", "vms", "apps", "storage", "networks", "misc", "shares", "documents"]
+    from ..models import Hardware, VM, AppService, Storage, Share, Network, Misc, Document
+
+    entity_map = {
+        "hardware": Hardware,
+        "vms": VM,
+        "apps": AppService,
+        "storage": Storage,
+        "networks": Network,
+        "misc": Misc,
+        "shares": Share,
+        "documents": Document,
+    }
 
     indexed = 0
     by_type = {}
     errors = []
 
-    for etype in entity_types:
+    for entity_type, model in entity_map.items():
         count = 0
         try:
-            items = store.list_all(etype)
+            items = model.query.all()
             for item in items:
                 try:
-                    SearchService.upsert(etype, item["id"], item)
+                    SearchService.upsert(entity_type, item.id, item.to_dict())
                     count += 1
                 except Exception as e:
-                    errors.append({"type": etype, "id": item.get("id"), "error": str(e)})
+                    errors.append({"type": entity_type, "id": item.id, "error": str(e)})
         except Exception as e:
-            errors.append({"type": etype, "error": str(e)})
-        by_type[etype] = count
+            errors.append({"type": entity_type, "error": str(e)})
+        by_type[entity_type] = count
         indexed += count
 
     status = "ok" if not errors else "partial"

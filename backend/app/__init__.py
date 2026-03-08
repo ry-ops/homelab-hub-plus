@@ -3,8 +3,8 @@ import os
 from flask import Flask, jsonify, send_from_directory
 
 from .config import Config
+from .models import db
 from .services.cache import init_cache
-from .services.gitstore import init_gitstore
 
 
 def create_app(config_class=Config):
@@ -13,8 +13,8 @@ def create_app(config_class=Config):
 
     app.config.from_object(config_class)
 
+    db.init_app(app)
     init_cache(app)
-    init_gitstore(app)
 
     # Enable CORS for development
     try:
@@ -40,12 +40,13 @@ def create_app(config_class=Config):
     @app.route("/api/config")
     def api_config():
         requires_auth = bool(app.config.get("API_TOKEN"))
-        return jsonify(requiresAuth=requires_auth, version="1.1.0")
+        return jsonify(requiresAuth=requires_auth, version="1.0.1")
 
     # SPA catch-all: serve index.html for all non-API routes
     @app.route("/", defaults={"path": ""})
     @app.route("/<path:path>")
     def serve_spa(path):
+        # Skip API routes - they're handled by blueprints
         api_prefixes = ("api/", "hardware/", "vms/", "apps/",
                        "storage/", "shares/", "networks/", "misc/", "documents/", "map/")
         if path.startswith(api_prefixes):
@@ -54,5 +55,9 @@ def create_app(config_class=Config):
         if os.path.isfile(file_path):
             return send_from_directory(static_dir, path)
         return send_from_directory(static_dir, "index.html")
+
+    # Create tables on first request if they don't exist
+    with app.app_context():
+        db.create_all()
 
     return app

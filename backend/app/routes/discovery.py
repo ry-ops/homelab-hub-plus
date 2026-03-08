@@ -11,7 +11,7 @@ import time
 
 from flask import Blueprint, jsonify, request
 
-from ..services.gitstore import get_store
+from ..models import Hardware, AppService, Misc, db
 from ..services.discovery import scan_cidr
 from ..services.search import SearchService
 
@@ -28,22 +28,32 @@ except Exception:
 
 bp = Blueprint("discovery", __name__, url_prefix="/api/discovery")
 
-# Map suggested_type → entity type
+# Map suggested_type → (model class, collection name)
 _TYPE_MAP = {
-    "hardware": "hardware",
-    "apps": "apps",
-    "misc": "misc",
+    "hardware": (Hardware, "hardware"),
+    "apps": (AppService, "apps"),
+    "misc": (Misc, "misc"),
 }
 
 
 @bp.route("/scan", methods=["POST"])
 def scan():
+    """
+    Scan a CIDR block and return fingerprinted host list.
+
+    Request body:
+      { cidr: str, concurrency?: int, timeout?: float }
+
+    Response:
+      { hosts: [...], total: int, alive: int, duration_ms: float }
+    """
     data = request.get_json(silent=True) or {}
     cidr = data.get("cidr", "").strip()
 
     if not cidr:
         return jsonify(error="'cidr' is required"), 400
 
+    # Validate CIDR
     try:
         network = ipaddress.ip_network(cidr, strict=False)
     except ValueError as exc:
@@ -61,41 +71,72 @@ def scan():
 
     alive_count = sum(1 for h in hosts if h.get("alive"))
 
-    return jsonify(hosts=hosts, total=len(hosts), alive=alive_count, duration_ms=duration_ms)
+    return jsonify(
+        hosts=hosts,
+        total=len(hosts),
+        alive=alive_count,
+        duration_ms=duration_ms,
+    )
 
 
 @bp.route("/import", methods=["POST"])
 def import_hosts():
+    """
+    Import a list of discovered hosts into the appropriate inventory tables.
+
+    Request body:
+      { hosts: [{ ip, type, name, hostname?, notes? }] }
+
+    Response:
+      { imported: int, by_type: {...}, errors: [...] }
+    """
     data = request.get_json(silent=True) or {}
     hosts = data.get("hosts", [])
 
     if not hosts:
         return jsonify(error="'hosts' list is required"), 400
 
-    store = get_store()
     imported = 0
     by_type: dict[str, int] = {}
     errors: list[dict] = []
 
     for host in hosts:
         ip = host.get("ip", "")
-        entity_type = _TYPE_MAP.get(host.get("type", "misc"), "misc")
+        entity_type = host.get("type", "misc")
         name = host.get("name") or ip
-        hostname = host.get("hostname") or ip
+        hostname = host.get("hostname") or host.get("ip", "")
         notes = host.get("notes", "")
 
+        model_class, collection = _TYPE_MAP.get(entity_type, (Misc, "misc"))
+
         try:
-            item = store.create(entity_type, {
-                "name": name,
-                "hostname": hostname,
-                "ip_address": ip,
-                "notes": notes,
-            })
-            SearchService.upsert(entity_type, item["id"], item)
+            item = model_class()
+            item.update_from_dict(
+                {
+                    "name": name,
+                    "hostname": hostname,
+                    "ip_address": ip,
+                    "notes": notes,
+                }
+            )
+            db.session.add(item)
+            db.session.flush()  # get the ID before commit
+
+            SearchService.upsert(collection, item.id, item.to_dict())
+
             imported += 1
             by_type[entity_type] = by_type.get(entity_type, 0) + 1
+
         except Exception as exc:
+            db.session.rollback()
             errors.append({"ip": ip, "error": str(exc)})
+            continue
+
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify(error=f"Commit failed: {exc}"), 500
 
     if imported:
         _invalidate_graph_cache()
