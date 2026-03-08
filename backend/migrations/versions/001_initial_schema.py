@@ -9,7 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, ProgrammingError
 
 revision: str = "001"
 down_revision: Union[str, None] = None
@@ -21,7 +21,7 @@ def add_column_if_not_exists(table_name, column):
     """Add a column only if it doesn't already exist."""
     try:
         op.add_column(table_name, column)
-    except OperationalError:
+    except (OperationalError, ProgrammingError):
         # Column already exists, skip
         pass
 
