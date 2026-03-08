@@ -1,30 +1,35 @@
 from flask import Blueprint, jsonify, request
 
-from ..models import db
+from ..services.gitstore import get_store
 from ..services.cache import cache
 from ..services.search import SearchService
 
 
-def create_crud_blueprint(name, model_class, url_prefix=None, detail_route=True):
-    """Generate a Flask Blueprint with standard CRUD endpoints for a model.
+def create_crud_blueprint(name, entity_type=None, url_prefix=None, detail_route=True):
+    """Generate a Flask Blueprint with standard CRUD endpoints backed by GitStore.
 
     Automatically:
     - Invalidates the map graph cache on writes
     - Upserts/deletes Qdrant vectors on writes
     """
+    etype = entity_type or name
     prefix = url_prefix or f"/api/{name}"
     bp = Blueprint(name, __name__, url_prefix=prefix)
 
     @bp.route("", methods=["GET"])
     def list_items():
-        items = model_class.query.all()
-        return jsonify(data=[item.to_dict() for item in items], count=len(items))
+        store = get_store()
+        items = store.list_all(etype)
+        return jsonify(data=items, count=len(items))
 
     if detail_route:
         @bp.route("/<int:item_id>", methods=["GET"])
         def get_item(item_id):
-            item = db.get_or_404(model_class, item_id)
-            return jsonify(data=item.to_dict())
+            store = get_store()
+            item = store.get(etype, item_id)
+            if item is None:
+                return jsonify(error="Not found"), 404
+            return jsonify(data=item)
 
     @bp.route("", methods=["POST"])
     def create_item():
@@ -32,40 +37,39 @@ def create_crud_blueprint(name, model_class, url_prefix=None, detail_route=True)
         if not data:
             return jsonify(error="Request body required"), 400
         try:
-            item = model_class()
-            item.update_from_dict(data)
-            db.session.add(item)
-            db.session.commit()
+            store = get_store()
+            item = store.create(etype, data)
             _invalidate_graph_cache()
-            SearchService.upsert(name, item.id, item.to_dict())
-            return jsonify(data=item.to_dict()), 201
+            SearchService.upsert(name, item["id"], item)
+            return jsonify(data=item), 201
         except Exception as e:
-            db.session.rollback()
-            print(f"Error creating {model_class.__name__}: {str(e)}")
+            print(f"Error creating {etype}: {str(e)}")
             return jsonify(error=str(e)), 500
 
     @bp.route("/<int:item_id>", methods=["PUT"])
     def update_item(item_id):
-        item = db.get_or_404(model_class, item_id)
+        store = get_store()
+        existing = store.get(etype, item_id)
+        if existing is None:
+            return jsonify(error="Not found"), 404
         data = request.get_json()
         if not data:
             return jsonify(error="Request body required"), 400
         try:
-            item.update_from_dict(data)
-            db.session.commit()
+            item = store.update(etype, item_id, data)
             _invalidate_graph_cache()
-            SearchService.upsert(name, item.id, item.to_dict())
-            return jsonify(data=item.to_dict())
+            SearchService.upsert(name, item["id"], item)
+            return jsonify(data=item)
         except Exception as e:
-            db.session.rollback()
-            print(f"Error updating {model_class.__name__}: {str(e)}")
+            print(f"Error updating {etype}: {str(e)}")
             return jsonify(error=str(e)), 500
 
     @bp.route("/<int:item_id>", methods=["DELETE"])
     def delete_item(item_id):
-        item = db.get_or_404(model_class, item_id)
-        db.session.delete(item)
-        db.session.commit()
+        store = get_store()
+        deleted = store.delete(etype, item_id)
+        if not deleted:
+            return jsonify(error="Not found"), 404
         _invalidate_graph_cache()
         SearchService.delete(name, item_id)
         return jsonify(message="Deleted"), 200
