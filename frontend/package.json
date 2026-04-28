@@ -35,6 +35,7 @@
     "micromark-factory-destination": ">=1.1.1",
     "micromark-util-normalize-identifier": ">=1.1.1",
     "micromark-util-sanitize-uri": ">=1.2.1",
-    "micromark": ">=3.2.1"
+    "micromark": ">=3.2.1",
+    "express": ">=5.2.3"
   }
 }
